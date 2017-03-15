@@ -42,7 +42,7 @@ class SerialConnection:
         self.call(MD49_MODE, (0x00, 0x25,))
         e1raw = self.ser.read(4)
         e2raw = self.ser.read(4)
-        print([hex(x) for x in e1raw], [hex(x) for x in e2raw])
+        #print([hex(x) for x in e1raw], [hex(x) for x in e2raw])
         encoder1 = struct.unpack('>i', e1raw)[0]
         encoder2 = struct.unpack('>i', e2raw)[0]
         return encoder1, encoder2
@@ -54,10 +54,10 @@ class SerialConnection:
         #print([hex(x) for x in command])
         self.ser.write(bytes(command))
         self.ser.flush()
-        resp = self.ser.read_all()
-        if resp:
+        #resp = self.ser.read_all()
+        #if resp:
             #print(resp)
-            print([hex(x) for x in resp])
+        #    print([hex(x) for x in resp])
 
 
 def log_encoders(sc: SerialConnection):
@@ -102,11 +102,13 @@ class ControllerState:
 
 
 def handle_axis_motion(conn, state, axis, value):
+    scaled_l = translate(state.axis_state[5], -32768, 32768, 0, 1) ** 3
+    scaled_r = translate(state.axis_state[2], -32768, 32768, 0, 1) ** 3
     if state.ind:
-        throttle_l = translate(state.axis_state[2], -32768, 32768, 0, 127)
-        throttle_r = translate(state.axis_state[5], -32768, 32767, 0, 127)
+        throttle_l = translate(scaled_l, 0, 1, 0, 127)
+        throttle_r = translate(scaled_r, 0, 1, 0, 127)
     else:
-        throttle = translate(state.axis_state[5] - state.axis_state[2], -65536, 65535, -128, 127)
+        throttle = translate(scaled_l - scaled_r, -1, 1, -128, 127)
         throttle_l = throttle
         throttle_r = throttle
     throttle_l = -throttle_l if state.l_rev else throttle_l
@@ -155,14 +157,15 @@ def main():
                     conn.call(MD49_MODE, (0x00, 0x35,))
                 elif button.button == 4:
                     # left shoulder: reverse
-                    state.l_rev = not state.l_rev
-                    print('Left reverse: {}'.format(state.l_rev))
-                elif button.button == 5:
-                    # right shoulder: reverse
                     state.r_rev = not state.r_rev
                     print('Right reverse: {}'.format(state.r_rev))
+                elif button.button == 5:
+                    # right shoulder: reverse
+                    state.l_rev = not state.l_rev
+                    print('Left reverse: {}'.format(state.l_rev))
                 else:
                     print('Button', button.button)
+        time.sleep(0.01)
     sdl2.SDL_Quit()
 
 
