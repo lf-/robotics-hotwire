@@ -8,6 +8,7 @@ import struct
 
 LOG_FILE = 'hotwireprogram.c'
 MD49_MODE = 0x01
+COMP_MODE = 0x03
 
 def saber_generate_packet(addr, cmd, data) -> bytes:
     """
@@ -47,6 +48,16 @@ class SerialConnection:
         encoder2 = struct.unpack('>i', e2raw)[0]
         return encoder1, encoder2
 
+    def comp_move(self, desired_encs):
+        out_encs = [0x01]
+        for e in desired_encs:
+            out_encs.extend(struct.pack('>i', e))
+        print(out_encs)
+        self.call(COMP_MODE, out_encs)
+
+    def comp_start(self):
+        self.call(COMP_MODE, [0x02, 0x00])
+
     def call(self, mode, cmd):
         command = []
         for byte in cmd:
@@ -62,7 +73,7 @@ class SerialConnection:
 
 def log_encoders(sc: SerialConnection):
     left, right = sc.md49_get_encoders()
-    line = '{{{}, {}}},'.format(left, right)
+    line = '{{{}, {}}},\n'.format(left, right)
     with open(LOG_FILE, 'a') as log:
         log.write(line)
 
